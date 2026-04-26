@@ -13,6 +13,8 @@ import {
   LogOut,
   ChevronDown,
   CircleDollarSign,
+  Menu,
+  X,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -39,6 +41,22 @@ export function DashboardSidebar() {
 
   const [fullName, setFullName] = useState("")
   const [initials, setInitials] = useState("")
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+
+  useEffect(() => {
+    setIsMobileOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [isMobileOpen])
 
   useEffect(() => {
     const getUser = async () => {
@@ -69,13 +87,43 @@ export function DashboardSidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col bg-[#213A6B] text-white">
-      <div className="flex h-20 items-center border-b border-white/10 px-6">
+    <>
+      <button
+        type="button"
+        onClick={() => setIsMobileOpen(true)}
+        aria-label="Abrir menú"
+        className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#213A6B] shadow-md transition-colors hover:bg-slate-100 md:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {isMobileOpen ? (
+        <div
+          onClick={() => setIsMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        />
+      ) : null}
+
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col bg-[#213A6B] text-white transition-transform duration-200 md:translate-x-0",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
+      <div className="relative flex h-20 items-center border-b border-white/10 px-6">
         <img
           src="/RentaVerify_imagotipo_horizontal_blanco.png"
           alt="Renta Verify"
           className="h-8 object-contain"
         />
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(false)}
+          aria-label="Cerrar menú"
+          className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -164,5 +212,6 @@ export function DashboardSidebar() {
         </DropdownMenu>
       </div>
     </aside>
+    </>
   )
 }
