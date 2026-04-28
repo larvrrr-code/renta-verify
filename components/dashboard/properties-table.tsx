@@ -4,6 +4,15 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { MoreHorizontal, Plus, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import {
+  PAST_DATE_PAYMENT_MESSAGE,
+  PaymentStatus,
+  getCurrentPeriod,
+  getLeasePaymentSummary,
+  getTodayDateForInput,
+  isBeforeToday,
+  paymentStatusConfig,
+} from "@/lib/payment-status"
 
 const supabase = createClient()
 
@@ -81,60 +90,9 @@ type Payment = {
   user_id?: string | null
 }
 
-type PaymentStatus =
-  | "sin_contrato"
-  | "al_corriente"
-  | "proximo_pago"
-  | "pendiente_pago"
-  | "atrasado"
-  | "pagado"
-
-const paymentStatusConfig: Record<
-  PaymentStatus,
-  { label: string; className: string }
-> = {
-  sin_contrato: {
-    label: "Sin contrato",
-    className: "border-gray-200 bg-gray-50 text-gray-700",
-  },
-  al_corriente: {
-    label: "Al corriente",
-    className: "border-slate-200 bg-slate-50 text-slate-700",
-  },
-  proximo_pago: {
-    label: "Próximo de pago",
-    className: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  },
-  pendiente_pago: {
-    label: "Pendiente de pago",
-    className: "border-orange-200 bg-orange-50 text-orange-700",
-  },
-  atrasado: {
-    label: "Atrasado",
-    className: "border-red-200 bg-red-50 text-red-700",
-  },
-  pagado: {
-    label: "Pagado",
-    className: "border-green-200 bg-green-50 text-green-700",
-  },
-}
-
-function getTodayDateForInput() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
 function formatCurrency(amount?: number | null) {
   if (amount === null || amount === undefined) return "—"
-
-  const numericAmount = Number(amount)
-  const absoluteAmount = Math.abs(numericAmount)
-  const formatted = `$${absoluteAmount.toLocaleString("es-MX")}`
-
-  return numericAmount < 0 ? `-${formatted}` : formatted
+  return `$${Math.abs(Number(amount)).toLocaleString("es-MX")}`
 }
 
 function inputClass() {
@@ -146,66 +104,6 @@ function getOptionLabel(
   value?: string | null
 ) {
   return options.find((option) => option.value === value)?.label || "—"
-}
-
-function getLeaseBalance(lease: Lease, payments: Payment[]) {
-  const rentAmount = Number(lease.rent_amount || 0)
-
-  const leasePayments = payments.filter(
-    (payment) => payment.lease_id === lease.id
-  )
-
-  const totalPaid = leasePayments.reduce(
-    (sum, payment) => sum + Number(payment.amount || 0),
-    0
-  )
-
-  if (!rentAmount || !lease.start_date) {
-    return {
-      totalPaid,
-      expectedAmount: 0,
-      balance: totalPaid,
-      paidMonths: 0,
-      paidUntilLabel: "Sin fecha de inicio",
-      status: "sin_contrato" as PaymentStatus,
-    }
-  }
-
-  const today = new Date()
-  const startDate = new Date(`${lease.start_date}T00:00:00`)
-
-  const monthsElapsed =
-    (today.getFullYear() - startDate.getFullYear()) * 12 +
-    (today.getMonth() - startDate.getMonth()) +
-    1
-
-  const expectedMonths = Math.max(monthsElapsed, 0)
-  const expectedAmount = expectedMonths * rentAmount
-  const balance = totalPaid - expectedAmount
-  const paidMonths = Math.floor(totalPaid / rentAmount)
-
-  const paidUntilDate = new Date(startDate)
-  paidUntilDate.setMonth(startDate.getMonth() + paidMonths - 1)
-
-  const paidUntilLabel =
-    paidMonths > 0
-      ? paidUntilDate.toLocaleDateString("es-MX", {
-          month: "long",
-          year: "numeric",
-        })
-      : "Sin mensualidades cubiertas"
-
-  return {
-    totalPaid,
-    expectedAmount,
-    balance,
-    paidMonths,
-    paidUntilLabel,
-    status:
-      balance >= 0
-        ? ("pagado" as PaymentStatus)
-        : ("atrasado" as PaymentStatus),
-  }
 }
 
 export function PropertiesTable() {
@@ -342,21 +240,15 @@ export function PropertiesTable() {
     return map
   }, [leases])
 
-  const getPaymentStatus = (propertyId: string): PaymentStatus => {
+  const period = useMemo(() => getCurrentPeriod(), [])
+
+  const getSummaryFor = (propertyId: string) => {
     const activeLease = activeLeaseByPropertyId.get(propertyId)
-
-    if (!activeLease) {
-      return "sin_contrato"
-    }
-
-    const leaseBalance = getLeaseBalance(activeLease, payments)
-
-    if (leaseBalance.status === "pagado") {
-      return "pagado"
-    }
-
-    return "atrasado"
+    return getLeasePaymentSummary(activeLease ?? null, payments, period)
   }
+
+  const getPaymentStatus = (propertyId: string): PaymentStatus =>
+    getSummaryFor(propertyId).status
 
   const resetForm = () => {
     setNewName("")
@@ -483,6 +375,11 @@ export function PropertiesTable() {
       return
     }
 
+    if (isBeforeToday(paymentDate)) {
+      setPaymentError(PAST_DATE_PAYMENT_MESSAGE)
+      return
+    }
+
     setIsSavingPayment(true)
     setPaymentError("")
 
@@ -602,11 +499,9 @@ export function PropertiesTable() {
                 {properties.map((property) => {
                   const activeLease = activeLeaseByPropertyId.get(property.id)
                   const isOccupied = Boolean(activeLease)
-                  const paymentStatus = getPaymentStatus(property.id)
-                  const paymentBadge = paymentStatusConfig[paymentStatus]
-                  const leaseBalance = activeLease
-                    ? getLeaseBalance(activeLease, payments)
-                    : null
+                  const summary = getSummaryFor(property.id)
+                  const paymentBadge = paymentStatusConfig[summary.status]
+                  const hasContract = summary.status !== "sin_contrato"
 
                   return (
                     <TableRow key={property.id}>
@@ -660,11 +555,13 @@ export function PropertiesTable() {
                       </TableCell>
 
                       <TableCell className="hidden md:table-cell">
-                        {leaseBalance?.paidUntilLabel || "—"}
+                        {hasContract ? summary.paidUntilLabel : "—"}
                       </TableCell>
 
                       <TableCell className="hidden md:table-cell">
-                        {leaseBalance ? formatCurrency(leaseBalance.balance) : "—"}
+                        {hasContract
+                          ? `${summary.balanceLabel}: ${formatCurrency(summary.balanceAmount)}`
+                          : "—"}
                       </TableCell>
 
                       <TableCell className="text-right">
@@ -812,6 +709,7 @@ export function PropertiesTable() {
                 <input
                   type="date"
                   value={paymentDate}
+                  min={getTodayDateForInput()}
                   onChange={(e) => setPaymentDate(e.target.value)}
                   className={inputClass()}
                   required

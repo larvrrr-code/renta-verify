@@ -12,6 +12,15 @@ import {
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase"
+import {
+  PAST_DATE_PAYMENT_MESSAGE,
+  PaymentStatus,
+  getCurrentPeriod,
+  getLeasePaymentSummary,
+  getTodayDateForInput as getTodayDateForInputLib,
+  isBeforeToday,
+  paymentStatusConfig,
+} from "@/lib/payment-status"
 const supabase = createClient()
 
 import {
@@ -130,14 +139,6 @@ type Tenant = {
   created_at: string | null
 }
 
-type PaymentStatus =
-  | "sin_contrato"
-  | "al_corriente"
-  | "proximo_pago"
-  | "pendiente_pago"
-  | "atrasado"
-  | "pagado"
-
 type EditDraft = {
   name: string
   address: string
@@ -152,52 +153,11 @@ type EditDraft = {
   currentMonthPaid: boolean
 }
 
-const paymentStatusConfig: Record<
-  PaymentStatus,
-  { label: string; className: string }
-> = {
-  sin_contrato: {
-    label: "Sin configuración",
-    className: "border-gray-200 bg-gray-50 text-gray-700",
-  },
-  al_corriente: {
-    label: "Al corriente",
-    className: "border-slate-200 bg-slate-50 text-slate-700",
-  },
-  proximo_pago: {
-    label: "Próximo de pago",
-    className: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  },
-  pendiente_pago: {
-    label: "Pendiente de pago",
-    className: "border-orange-200 bg-orange-50 text-orange-700",
-  },
-  atrasado: {
-    label: "Atrasado",
-    className: "border-red-200 bg-red-50 text-red-700",
-  },
-  pagado: {
-    label: "Pagado",
-    className: "border-green-200 bg-green-50 text-green-700",
-  },
-}
-
-function getTodayDateForInput() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
+const getTodayDateForInput = getTodayDateForInputLib
 
 function formatCurrency(amount?: number | null) {
   if (amount === null || amount === undefined) return "—"
-
-  const numericAmount = Number(amount)
-  const absoluteAmount = Math.abs(numericAmount)
-  const formatted = `$${absoluteAmount.toLocaleString("es-MX")}`
-
-  return numericAmount < 0 ? `-${formatted}` : formatted
+  return `$${Math.abs(Number(amount)).toLocaleString("es-MX")}`
 }
 
 function getOptionLabel(
@@ -220,73 +180,6 @@ function getInitialDraft(property: Property, lease?: Lease | null): EditDraft {
     startDate: lease?.start_date ?? "",
     endDate: lease?.end_date ?? "",
     currentMonthPaid: false,
-  }
-}
-
-function getLeaseBalance(lease: Lease, payments: Payment[]) {
-  const rentAmount = Number(lease.rent_amount || 0)
-
-  const leasePayments = payments.filter(
-    (payment) => payment.lease_id === lease.id
-  )
-
-  const totalPaid = leasePayments.reduce(
-    (sum, payment) => sum + Number(payment.amount || 0),
-    0
-  )
-
-  if (!rentAmount || !lease.start_date) {
-    return {
-      totalPaid,
-      expectedAmount: 0,
-      balance: totalPaid,
-      paidMonths: 0,
-      paidUntilLabel: "Sin fecha de inicio",
-      status: "sin_contrato" as PaymentStatus,
-    }
-  }
-
-  const today = new Date()
-  const startDate = new Date(`${lease.start_date}T00:00:00`)
-
-  const createdAt = lease.created_at ? new Date(lease.created_at) : null
-  const createdAtMonthStart = createdAt
-    ? new Date(createdAt.getFullYear(), createdAt.getMonth(), 1)
-    : null
-
-  const effectiveStart =
-    createdAtMonthStart && createdAtMonthStart > startDate
-      ? createdAtMonthStart
-      : startDate
-
-  const monthsElapsed =
-    (today.getFullYear() - effectiveStart.getFullYear()) * 12 +
-    (today.getMonth() - effectiveStart.getMonth()) +
-    1
-
-  const expectedMonths = Math.max(monthsElapsed, 0)
-  const expectedAmount = expectedMonths * rentAmount
-  const balance = totalPaid - expectedAmount
-  const paidMonths = Math.floor(totalPaid / rentAmount)
-
-  const paidUntilDate = new Date(effectiveStart)
-  paidUntilDate.setMonth(effectiveStart.getMonth() + paidMonths - 1)
-
-  const paidUntilLabel =
-    paidMonths > 0
-      ? paidUntilDate.toLocaleDateString("es-MX", {
-          month: "long",
-          year: "numeric",
-        })
-      : "Sin mensualidades cubiertas"
-
-  return {
-    totalPaid,
-    expectedAmount,
-    balance,
-    paidMonths,
-    paidUntilLabel,
-    status: balance >= 0 ? ("pagado" as PaymentStatus) : ("atrasado" as PaymentStatus),
   }
 }
 
@@ -468,21 +361,15 @@ export function PropertiesManagement() {
     return map
   }, [tenants])
 
-  const getPaymentStatus = (propertyId: string): PaymentStatus => {
+  const period = useMemo(() => getCurrentPeriod(), [])
+
+  const getSummaryFor = (propertyId: string) => {
     const activeLease = activeLeaseByPropertyId.get(propertyId)
-
-    if (!activeLease || !activeLease.tenant_id) {
-      return "sin_contrato"
-    }
-
-    const leaseBalance = getLeaseBalance(activeLease, payments)
-
-    if (leaseBalance.status === "pagado") {
-      return "pagado"
-    }
-
-    return "atrasado"
+    return getLeasePaymentSummary(activeLease ?? null, payments, period)
   }
+
+  const getPaymentStatus = (propertyId: string): PaymentStatus =>
+    getSummaryFor(propertyId).status
 
   const openEdit = (property: Property, presetTenantId?: string) => {
     const activeLease = activeLeaseByPropertyId.get(property.id)
@@ -905,6 +792,11 @@ export function PropertiesManagement() {
       return
     }
 
+    if (isBeforeToday(paymentDate)) {
+      setPaymentError(PAST_DATE_PAYMENT_MESSAGE)
+      return
+    }
+
     setIsSavingPayment(true)
     setPaymentError("")
 
@@ -1013,9 +905,9 @@ export function PropertiesManagement() {
                 const assignedTenant = activeLease?.tenant_id
                   ? tenantById.get(activeLease.tenant_id)
                   : null
-                const paymentStatus = getPaymentStatus(property.id)
-                const paymentBadge = paymentStatusConfig[paymentStatus]
-                const leaseBalance = activeLease ? getLeaseBalance(activeLease, payments) : null
+                const summary = getSummaryFor(property.id)
+                const paymentBadge = paymentStatusConfig[summary.status]
+                const hasContract = summary.status !== "sin_contrato"
                 return (
                   <div
                     key={property.id}
@@ -1073,12 +965,12 @@ export function PropertiesManagement() {
 
                             <InfoBox
                               label="Pagado hasta"
-                              value={leaseBalance?.paidUntilLabel || "Sin contrato"}
+                              value={hasContract ? summary.paidUntilLabel : "Sin contrato"}
                             />
 
                             <InfoBox
-                              label={leaseBalance && leaseBalance.balance >= 0 ? "Saldo a favor" : "Adeudo"}
-                              value={leaseBalance ? formatCurrency(leaseBalance.balance) : "—"}
+                              label={hasContract ? summary.balanceLabel : "Adeudo"}
+                              value={hasContract ? formatCurrency(summary.balanceAmount) : "—"}
                             />
                           </div>
 
@@ -1239,6 +1131,7 @@ export function PropertiesManagement() {
                 <input
                   type="date"
                   value={paymentDate}
+                  min={getTodayDateForInput()}
                   onChange={(e) => setPaymentDate(e.target.value)}
                   className={inputClass()}
                   required
@@ -1532,27 +1425,42 @@ export function PropertiesManagement() {
                     {editDraft.tenantId &&
                       editDraft.rentAmount &&
                       !activeLeaseByPropertyId.get(selectedPropertyForEdit.id) ? (
-                      <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={editDraft.currentMonthPaid}
-                          onChange={(e) =>
-                            setEditDraft((prev) =>
-                              prev
-                                ? { ...prev, currentMonthPaid: e.target.checked }
-                                : prev
-                            )
-                          }
-                          className="mt-0.5"
-                        />
-                        <span>
-                          El pago del mes actual ya fue recibido.
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            Se registrará automáticamente el pago del mes en curso.
-                            Los meses anteriores se asumen pagados.
-                          </span>
-                        </span>
-                      </label>
+                      <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm text-slate-700">
+                        <p className="font-medium">
+                          ¿El inquilino ya pagó el mes en curso?
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="currentMonthPaid"
+                              checked={editDraft.currentMonthPaid === true}
+                              onChange={() =>
+                                setEditDraft((prev) =>
+                                  prev ? { ...prev, currentMonthPaid: true } : prev
+                                )
+                              }
+                            />
+                            <span>Sí, registrar pago del mes actual</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="currentMonthPaid"
+                              checked={editDraft.currentMonthPaid === false}
+                              onChange={() =>
+                                setEditDraft((prev) =>
+                                  prev ? { ...prev, currentMonthPaid: false } : prev
+                                )
+                              }
+                            />
+                            <span>No, dejar como pendiente</span>
+                          </label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Si eliges Sí, se registrará automáticamente el pago del mes en curso con la fecha de hoy.
+                        </p>
+                      </div>
                     ) : null}
                   </div>
                 </div>

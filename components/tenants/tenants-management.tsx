@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation"
 import {
   User,
   Trash2,
-  Phone,
   Building2,
   CalendarClock,
   Link2,
+  Info,
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase"
@@ -34,6 +34,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  PaymentStatus,
+  paymentStatusConfig,
+  getCurrentPeriod,
+  getLeasePaymentSummary,
+} from "@/lib/payment-status"
 
 const supabase = createClient()
 
@@ -41,8 +47,50 @@ type Tenant = {
   id: string
   name: string | null
   phone: string | null
+  tenant_source: string | null
+  age_range: string | null
+  occupation_type: string | null
+  dependents_range: string | null
+  has_pets: boolean | null
+  notes: string | null
   user_id: string | null
 }
+
+const tenantSourceOptions = [
+  { value: "recomendacion_familiar_conocido", label: "Recomendación de familiar o conocido" },
+  { value: "recomendacion_inquilino_anterior", label: "Recomendación de inquilino anterior" },
+  { value: "red_social", label: "Red social" },
+  { value: "plataforma_digital", label: "Plataforma digital" },
+  { value: "agencia_inmobiliaria", label: "Agencia inmobiliaria" },
+  { value: "anuncio_propio", label: "Anuncio propio" },
+  { value: "ya_lo_conocia", label: "Ya lo conocía previamente" },
+  { value: "otro", label: "Otro" },
+]
+
+const ageRangeOptions = [
+  { value: "18-25", label: "18 a 25" },
+  { value: "26-35", label: "26 a 35" },
+  { value: "36-45", label: "36 a 45" },
+  { value: "46-60", label: "46 a 60" },
+  { value: "61+", label: "Más de 61" },
+]
+
+const occupationTypeOptions = [
+  { value: "empleo_formal", label: "Empleo formal / nómina" },
+  { value: "negocio_propio", label: "Negocio propio" },
+  { value: "freelance", label: "Trabajo independiente / freelance" },
+  { value: "comisiones_ventas", label: "Comisiones / ventas" },
+  { value: "apoyo_familiar", label: "Apoyo familiar" },
+  { value: "rentas_inversiones", label: "Rentas / inversiones" },
+  { value: "otro", label: "Otro" },
+]
+
+const dependentsRangeOptions = [
+  { value: "0", label: "0" },
+  { value: "1-2", label: "1 a 2" },
+  { value: "3-4", label: "3 a 4" },
+  { value: "5+", label: "Más de 5" },
+]
 
 type Property = {
   id: string
@@ -73,30 +121,17 @@ type Payment = {
   user_id: string | null
 }
 
-type TenantStatus = "al_corriente" | "proximo_pago" | "atrasado" | "sin_contrato"
-
 type TenantSummary = {
   tenant: Tenant
   property: Property | null
   lease: Lease | null
-  status: TenantStatus
+  status: PaymentStatus
   nextPaymentDate: Date | null
   balance: number
 }
 
-const statusStyles: Record<TenantStatus, { label: string; className: string }> = {
-  al_corriente: {
-    label: "Al corriente",
-    className: "bg-green-100 text-green-700 hover:bg-green-100",
-  },
-  proximo_pago: {
-    label: "Próximo a pagar",
-    className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-  },
-  atrasado: {
-    label: "Atrasado",
-    className: "bg-red-100 text-red-700 hover:bg-red-100",
-  },
+const statusStyles: Record<PaymentStatus, { label: string; className: string }> = {
+  ...paymentStatusConfig,
   sin_contrato: {
     label: "Sin contrato",
     className:
@@ -127,65 +162,16 @@ function computeTenantSummary(
     ? properties.find((p) => p.id === lease.property_id) || null
     : null
 
-  if (!lease || !lease.rent_amount || !lease.start_date) {
-    return {
-      tenant,
-      property,
-      lease,
-      status: "sin_contrato",
-      nextPaymentDate: null,
-      balance: 0,
-    }
+  const summary = getLeasePaymentSummary(lease, payments, getCurrentPeriod())
+
+  return {
+    tenant,
+    property,
+    lease,
+    status: summary.status,
+    nextPaymentDate: summary.nextDueDate ?? summary.dueDate,
+    balance: summary.balanceCurrentMonth,
   }
-
-  const rentAmount = Number(lease.rent_amount)
-  const today = new Date()
-  const startDate = new Date(`${lease.start_date}T00:00:00`)
-
-  const createdAt = lease.created_at ? new Date(lease.created_at) : null
-  const createdAtMonthStart = createdAt
-    ? new Date(createdAt.getFullYear(), createdAt.getMonth(), 1)
-    : null
-
-  const effectiveStart =
-    createdAtMonthStart && createdAtMonthStart > startDate
-      ? createdAtMonthStart
-      : startDate
-
-  const leasePayments = payments.filter((p) => p.lease_id === lease.id)
-  const totalPaid = leasePayments.reduce(
-    (sum, p) => sum + Number(p.amount || 0),
-    0
-  )
-
-  const monthsElapsed =
-    (today.getFullYear() - effectiveStart.getFullYear()) * 12 +
-    (today.getMonth() - effectiveStart.getMonth()) +
-    1
-
-  const expectedAmount = Math.max(monthsElapsed, 0) * rentAmount
-  const balance = totalPaid - expectedAmount
-  const paidMonths = Math.floor(totalPaid / rentAmount)
-
-  const dueDay = Math.min(Math.max(Number(lease.due_day || 1), 1), 28)
-
-  const nextPaymentDate = new Date(
-    effectiveStart.getFullYear(),
-    effectiveStart.getMonth() + paidMonths,
-    dueDay
-  )
-
-  let status: TenantStatus
-  if (balance < 0) {
-    status = "atrasado"
-  } else {
-    const daysUntilDue = Math.ceil(
-      (nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    )
-    status = daysUntilDue <= 7 ? "proximo_pago" : "al_corriente"
-  }
-
-  return { tenant, property, lease, status, nextPaymentDate, balance }
 }
 
 export function TenantsManagement() {
@@ -200,6 +186,76 @@ export function TenantsManagement() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [assigningTenant, setAssigningTenant] = useState<Tenant | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState("")
+  const [detailsTenant, setDetailsTenant] = useState<Tenant | null>(null)
+  const [detailsName, setDetailsName] = useState("")
+  const [detailsSource, setDetailsSource] = useState("")
+  const [detailsAgeRange, setDetailsAgeRange] = useState("")
+  const [detailsOccupation, setDetailsOccupation] = useState("")
+  const [detailsDependents, setDetailsDependents] = useState("")
+  const [detailsHasPets, setDetailsHasPets] = useState("")
+  const [detailsNotes, setDetailsNotes] = useState("")
+  const [savingDetails, setSavingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState("")
+
+  const openDetails = (tenant: Tenant) => {
+    setDetailsTenant(tenant)
+    setDetailsName(tenant.name || "")
+    setDetailsSource(tenant.tenant_source || "")
+    setDetailsAgeRange(tenant.age_range || "")
+    setDetailsOccupation(tenant.occupation_type || "")
+    setDetailsDependents(tenant.dependents_range || "")
+    setDetailsHasPets(
+      tenant.has_pets === null || tenant.has_pets === undefined
+        ? ""
+        : tenant.has_pets
+        ? "true"
+        : "false"
+    )
+    setDetailsNotes(tenant.notes || "")
+    setDetailsError("")
+  }
+
+  const closeDetails = () => {
+    setDetailsTenant(null)
+    setDetailsError("")
+  }
+
+  const handleSaveDetails = async () => {
+    if (!detailsTenant || !currentUserId) return
+
+    if (!detailsName.trim()) {
+      setDetailsError("El alias es obligatorio.")
+      return
+    }
+
+    setSavingDetails(true)
+    setDetailsError("")
+
+    const { error } = await supabase
+      .from("tenants")
+      .update({
+        name: detailsName.trim(),
+        tenant_source: detailsSource || null,
+        age_range: detailsAgeRange || null,
+        occupation_type: detailsOccupation || null,
+        dependents_range: detailsDependents || null,
+        has_pets:
+          detailsHasPets === "" ? null : detailsHasPets === "true",
+        notes: detailsNotes.trim() || null,
+      })
+      .eq("id", detailsTenant.id)
+      .eq("user_id", currentUserId)
+
+    if (error) {
+      setDetailsError(error.message)
+      setSavingDetails(false)
+      return
+    }
+
+    await fetchData()
+    setSavingDetails(false)
+    closeDetails()
+  }
 
   const fetchData = async () => {
     const {
@@ -221,7 +277,9 @@ export function TenantsManagement() {
     ] = await Promise.all([
       supabase
         .from("tenants")
-        .select("id, name, phone, user_id")
+        .select(
+          "id, name, phone, tenant_source, age_range, occupation_type, dependents_range, has_pets, notes, user_id"
+        )
         .eq("user_id", user.id),
       supabase
         .from("properties")
@@ -399,12 +457,6 @@ export function TenantsManagement() {
                       <h3 className="font-semibold tracking-wider text-foreground">
                         {summary.tenant.name || "Sin nombre"}
                       </h3>
-                      {summary.tenant.phone ? (
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          {summary.tenant.phone}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
 
@@ -437,21 +489,31 @@ export function TenantsManagement() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  {!hasLease ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       className="gap-2 text-[#3E61D0] transition-colors hover:bg-[#E8EEF9] hover:text-[#3E61D0]"
-                      onClick={() => openAssignModal(summary.tenant)}
-                      disabled={propertiesWithoutLease.length === 0}
+                      onClick={() => openDetails(summary.tenant)}
                     >
-                      <Link2 className="h-4 w-4" />
-                      Asignar propiedad
+                      <Info className="h-4 w-4" />
+                      Detalles
                     </Button>
-                  ) : (
-                    <span />
-                  )}
+
+                    {!hasLease ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-[#3E61D0] transition-colors hover:bg-[#E8EEF9] hover:text-[#3E61D0]"
+                        onClick={() => openAssignModal(summary.tenant)}
+                        disabled={propertiesWithoutLease.length === 0}
+                      >
+                        <Link2 className="h-4 w-4" />
+                        Asignar propiedad
+                      </Button>
+                    ) : null}
+                  </div>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -554,6 +616,161 @@ export function TenantsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={Boolean(detailsTenant)}
+        onOpenChange={(open) => {
+          if (!open) closeDetails()
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="tracking-wider">
+              Detalles del inquilino
+            </DialogTitle>
+            <DialogDescription>
+              Consulta y actualiza la información del inquilino.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <DetailField label="Alias" required>
+              <input
+                value={detailsName}
+                onChange={(e) => setDetailsName(e.target.value)}
+                className={detailsInputClass()}
+                placeholder="Alias"
+              />
+            </DetailField>
+
+            <DetailField label="¿Cómo lo contactaste?">
+              <select
+                value={detailsSource}
+                onChange={(e) => setDetailsSource(e.target.value)}
+                className={detailsInputClass()}
+              >
+                <option value="">Selecciona una opción</option>
+                {tenantSourceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </DetailField>
+
+            <DetailField label="Rango de edad">
+              <select
+                value={detailsAgeRange}
+                onChange={(e) => setDetailsAgeRange(e.target.value)}
+                className={detailsInputClass()}
+              >
+                <option value="">Selecciona una opción</option>
+                {ageRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </DetailField>
+
+            <DetailField label="Tipo de ocupación">
+              <select
+                value={detailsOccupation}
+                onChange={(e) => setDetailsOccupation(e.target.value)}
+                className={detailsInputClass()}
+              >
+                <option value="">Selecciona una opción</option>
+                {occupationTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </DetailField>
+
+            <DetailField label="Número de inquilinos">
+              <select
+                value={detailsDependents}
+                onChange={(e) => setDetailsDependents(e.target.value)}
+                className={detailsInputClass()}
+              >
+                <option value="">Selecciona una opción</option>
+                {dependentsRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </DetailField>
+
+            <DetailField label="¿Tiene mascotas?">
+              <select
+                value={detailsHasPets}
+                onChange={(e) => setDetailsHasPets(e.target.value)}
+                className={detailsInputClass()}
+              >
+                <option value="">Selecciona una opción</option>
+                <option value="true">Sí</option>
+                <option value="false">No</option>
+              </select>
+            </DetailField>
+
+            <DetailField label="Notas">
+              <textarea
+                value={detailsNotes}
+                onChange={(e) => setDetailsNotes(e.target.value)}
+                className={`${detailsInputClass()} min-h-[90px] resize-none`}
+                placeholder="Información adicional"
+              />
+            </DetailField>
+
+            {detailsError ? (
+              <p className="text-sm text-red-600">{detailsError}</p>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeDetails}
+              className="transition-colors hover:bg-muted"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveDetails}
+              disabled={savingDetails || !detailsName.trim()}
+              className="bg-accent text-accent-foreground transition-colors hover:bg-accent/90"
+            >
+              {savingDetails ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  )
+}
+
+function detailsInputClass() {
+  return "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#213A6B] focus:ring-2 focus:ring-[#213A6B]/15"
+}
+
+function DetailField({
+  label,
+  children,
+  required,
+}: {
+  label: string
+  children: React.ReactNode
+  required?: boolean
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-foreground">
+        {label}
+        {required ? <span className="ml-0.5 text-red-600">*</span> : null}
+      </label>
+      {children}
+    </div>
   )
 }

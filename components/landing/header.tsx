@@ -61,7 +61,7 @@ export function Header() {
               onClick={handleAuthNavigation}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
-              {user ? "Abrir portal" : "Portal de Arrendadores"}
+              {user ? "Regresar al portal" : "Portal de Arrendadores"}
             </Button>
           </div>
 
@@ -85,7 +85,7 @@ export function Header() {
                 onClick={handleAuthNavigation}
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
               >
-                {user ? "Abrir portal" : "Portal de Arrendadores"}
+                {user ? "Regresar al portal" : "Portal de Arrendadores"}
               </Button>
             </div>
           </div>

@@ -23,6 +23,10 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { createClient } from "@/lib/supabase"
+import {
+  getCurrentPeriod,
+  getLeasePaymentSummary,
+} from "@/lib/payment-status"
 const supabase = createClient()
 
 import { DashboardHeader } from "@/components/dashboard/header"
@@ -55,12 +59,14 @@ type Property = {
 type Lease = {
   id: string
   property_id: string | null
+  tenant_id: string | null
   status: string | null
   due_day: number | null
   rent_amount: number | null
   start_date: string | null
   end_date: string | null
   user_id: string | null
+  created_at: string | null
 }
 
 type Payment = {
@@ -154,7 +160,7 @@ export default function PaymentsPage() {
         supabase
           .from("leases")
           .select(
-            "id, property_id, status, due_day, rent_amount, start_date, end_date, user_id"
+            "id, property_id, tenant_id, status, due_day, rent_amount, start_date, end_date, user_id, created_at"
           )
           .eq("user_id", currentUserId),
 
@@ -234,9 +240,8 @@ export default function PaymentsPage() {
   }, [payments, leaseById, propertyById])
 
   const currentMonthStatus = useMemo(() => {
-    const today = new Date()
-    const currentMonth = today.getMonth() + 1
-    const currentYear = today.getFullYear()
+    const period = getCurrentPeriod()
+    const { today, month: currentMonth, year: currentYear } = period
 
     const upcoming: {
       id: string
@@ -256,19 +261,19 @@ export default function PaymentsPage() {
       dueDay: number | null
     }[] = []
 
+    let receivedCount = 0
+
     activeLeases.forEach((lease) => {
       const property = lease.property_id
         ? propertyById.get(lease.property_id)
         : null
 
-      const alreadyPaid = payments.some(
-        (payment) =>
-          payment.lease_id === lease.id &&
-          payment.period_month === currentMonth &&
-          payment.period_year === currentYear
-      )
+      const summary = getLeasePaymentSummary(lease, payments, period)
 
-      if (alreadyPaid) return
+      if (summary.status === "pagado") {
+        receivedCount += 1
+        return
+      }
 
       const dueDate = getDueDate(currentYear, currentMonth, lease.due_day)
 
@@ -276,19 +281,19 @@ export default function PaymentsPage() {
         id: lease.id,
         propertyName: property?.name || "Propiedad sin nombre",
         propertyAddress: property?.address || "Sin dirección",
-        amount: lease.rent_amount,
+        amount: summary.remainingCurrentMonth || lease.rent_amount,
         dueDate,
         dueDay: lease.due_day,
       }
 
-      if (today > dueDate) {
+      if (summary.status === "atrasado") {
         overdue.push(row)
       } else {
         upcoming.push(row)
       }
     })
 
-    return { upcoming, overdue }
+    return { upcoming, overdue, receivedCount }
   }, [activeLeases, payments, propertyById])
 
   const monthlyChartData = useMemo(() => {
@@ -314,16 +319,10 @@ export default function PaymentsPage() {
   }, [payments])
 
   const pieChartData = useMemo(() => {
-    const today = new Date()
-
     return [
       {
         name: "Recibidos",
-        value: enrichedPayments.filter(
-          (payment) =>
-            payment.period_month === today.getMonth() + 1 &&
-            payment.period_year === today.getFullYear()
-        ).length,
+        value: currentMonthStatus.receivedCount,
         color: "#16a34a",
       },
       {
@@ -337,7 +336,7 @@ export default function PaymentsPage() {
         color: "#dc2626",
       },
     ]
-  }, [enrichedPayments, currentMonthStatus])
+  }, [currentMonthStatus])
 
   const totalReceived = payments.reduce(
     (sum, payment) => sum + Number(payment.amount || 0),

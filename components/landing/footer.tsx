@@ -12,13 +12,13 @@ export function Footer() {
           {/* Brand */}
           <div>
             <img
-              src="/RentaVerify_isotipo_blanco.png"
+              src="/RentaVerify_imagotipo_horizontal_blanco.png"
               alt="Renta Verify"
               className="h-12 w-auto"
             />
             <p className="mt-4 text-sm text-white/80 max-w-md leading-relaxed">
-              La plataforma líder en evaluación de inquilinos. Decide con información,
-              renta con seguridad.
+              La forma más simple de administrar tus rentas. Controla propiedades,
+              pagos e inquilinos desde un solo lugar.
             </p>
           </div>
 

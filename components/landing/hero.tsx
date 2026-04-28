@@ -48,7 +48,7 @@ export function Hero() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-secondary/10 px-5 py-2.5 text-base font-medium text-secondary">
             <Shield className="w-4 h-4" />
-            <span>Evaluación profesional de inquilinos</span>
+            <span>Gestión clara de propiedades y rentas</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-[4.5rem] leading-[1.1] lg:leading-[1.05] tracking-tight text-foreground text-balance">
@@ -58,14 +58,14 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 text-lg leading-relaxed text-muted-foreground lg:text-xl text-pretty">
-            Evalúa a tus inquilinos con datos reales: análisis crediticio, antecedentes legales 
-            y presencia digital. Toma decisiones informadas y protege tu inversión inmobiliaria.
+            Lleva el control de tus propiedades, inquilinos y fechas de pago en un solo lugar.
+            Visualiza quién ya pagó, quién está pendiente y mantén tus rentas organizadas sin complicaciones.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button 
+            <Button
               onClick={handlePortalClick}
-              size="lg" 
+              size="lg"
               className="bg-accent text-accent-foreground hover:bg-accent/90 text-base font-semibold px-8 h-12 w-full sm:w-auto"
             >
               Portal de arrendadores
@@ -93,10 +93,10 @@ export function Hero() {
               <BarChart3 className="w-6 h-6 text-primary" />
             </div>
             <p className="text-2xl font-semibold tracking-tight text-foreground">
-              Precisión
+              Control
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Evaluaciones confiables
+              Pagos y rentas claras
             </p>
           </div>
 
@@ -105,10 +105,10 @@ export function Hero() {
               <Shield className="w-6 h-6 text-secondary" />
             </div>
             <p className="text-2xl font-semibold tracking-tight text-foreground">
-              Seguridad
+              Organización
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Protege tu inversión
+              Toda tu información en un solo lugar
             </p>
           </div>
 
@@ -117,10 +117,10 @@ export function Hero() {
               <Search className="w-6 h-6 text-accent" />
             </div>
             <p className="text-2xl font-semibold tracking-tight text-foreground">
-              24hrs
+              Seguimiento
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tiempo promedio de reporte
+              Identifica pagos pendientes al instante
             </p>
           </div>
         </div>

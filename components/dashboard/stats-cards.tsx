@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Building2, CreditCard, AlertCircle, Calendar } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import {
+  getCurrentPeriod,
+  getLeasePaymentSummary,
+} from "@/lib/payment-status"
 const supabase = createClient()
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +14,12 @@ import { Badge } from "@/components/ui/badge"
 type Lease = {
   id: string
   property_id: string | null
+  tenant_id: string | null
   status: string | null
   due_day: number | null
+  rent_amount: number | null
+  start_date: string | null
+  created_at: string | null
 }
 
 type Payment = {
@@ -37,7 +45,11 @@ export function StatsCards() {
       { data: leasesData, error: leasesError },
       { data: paymentsData, error: paymentsError },
     ] = await Promise.all([
-      supabase.from("leases").select("id, property_id, status, due_day"),
+      supabase
+        .from("leases")
+        .select(
+          "id, property_id, tenant_id, status, due_day, rent_amount, start_date, created_at"
+        ),
       supabase.from("payments").select("id, lease_id, amount, payment_date, period_month, period_year"),
     ])
 
@@ -63,10 +75,7 @@ export function StatsCards() {
   }, [])
 
   const stats = useMemo(() => {
-    const today = new Date()
-    const currentMonth = today.getMonth() + 1
-    const currentYear = today.getFullYear()
-    const currentDay = today.getDate()
+    const period = getCurrentPeriod()
 
     const activeLeases = leases.filter(
       (lease) => lease.status === "active" && lease.property_id
@@ -75,31 +84,23 @@ export function StatsCards() {
     const totalCollectedThisMonth = payments
       .filter(
         (payment) =>
-          payment.period_month === currentMonth &&
-          payment.period_year === currentYear
+          payment.period_month === period.month &&
+          payment.period_year === period.year
       )
       .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0)
 
-    const hasCurrentMonthPayment = (leaseId: string) =>
-      payments.some(
-        (payment) =>
-          payment.lease_id === leaseId &&
-          payment.period_month === currentMonth &&
-          payment.period_year === currentYear
+    let overdueCount = 0
+    let upcomingCount = 0
+
+    activeLeases.forEach((lease) => {
+      const summary = getLeasePaymentSummary(lease, payments, period)
+      if (summary.status === "atrasado") overdueCount += 1
+      else if (
+        summary.status === "proximo_pago" ||
+        summary.status === "pendiente_pago"
       )
-
-    const overdueCount = activeLeases.filter((lease) => {
-      if (!lease.due_day) return false
-      if (hasCurrentMonthPayment(lease.id)) return false
-      return currentDay > lease.due_day
-    }).length
-
-    const upcomingCount = activeLeases.filter((lease) => {
-      if (!lease.due_day) return false
-      if (hasCurrentMonthPayment(lease.id)) return false
-      if (currentDay >= lease.due_day) return false
-      return lease.due_day - currentDay <= 7
-    }).length
+        upcomingCount += 1
+    })
 
     const activePropertiesCount = activeLeases.length
 
