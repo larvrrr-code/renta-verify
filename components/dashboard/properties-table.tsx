@@ -5,12 +5,9 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Plus, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import {
-  PAST_DATE_PAYMENT_MESSAGE,
-  PaymentStatus,
   getCurrentPeriod,
   getLeasePaymentSummary,
   getTodayDateForInput,
-  isBeforeToday,
   paymentStatusConfig,
 } from "@/lib/payment-status"
 
@@ -92,6 +89,17 @@ type Payment = {
   user_id?: string | null
 }
 
+type PendingPaymentAction = {
+  leaseId: string
+  amount: number
+  payment_date: string
+  payment_method: string
+  period_month: number
+  period_year: number
+  notes: string | null
+  existingPayments: Payment[]
+}
+
 function formatCurrency(amount?: number | null) {
   if (amount === null || amount === undefined) return "—"
   return `$${Math.abs(Number(amount)).toLocaleString("es-MX")}`
@@ -132,11 +140,17 @@ export function PropertiesTable() {
   const [selectedPropertyForPayment, setSelectedPropertyForPayment] =
     useState<Property | null>(null)
   const [paymentDate, setPaymentDate] = useState(getTodayDateForInput())
+  const [paymentPeriodKey, setPaymentPeriodKey] = useState(() => {
+    const currentPeriod = getCurrentPeriod()
+    return `${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")}`
+  })
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("")
   const [paymentNotes, setPaymentNotes] = useState("")
   const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState("")
+  const [pendingPaymentAction, setPendingPaymentAction] =
+    useState<PendingPaymentAction | null>(null)
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedPropertyForDelete, setSelectedPropertyForDelete] =
@@ -243,14 +257,28 @@ export function PropertiesTable() {
   }, [leases])
 
   const period = useMemo(() => getCurrentPeriod(), [])
+  const paymentPeriodOptions = useMemo(() => {
+    return Array.from({ length: 24 }, (_, index) => {
+      const date = new Date(period.year, period.month - 1 - index, 1)
+      const month = date.getMonth() + 1
+      const year = date.getFullYear()
+
+      return {
+        value: `${year}-${String(month).padStart(2, "0")}`,
+        month,
+        year,
+        label: date.toLocaleDateString("es-MX", {
+          month: "long",
+          year: "numeric",
+        }),
+      }
+    })
+  }, [period.year])
 
   const getSummaryFor = (propertyId: string) => {
     const activeLease = activeLeaseByPropertyId.get(propertyId)
     return getLeasePaymentSummary(activeLease ?? null, payments, period)
   }
-
-  const getPaymentStatus = (propertyId: string): PaymentStatus =>
-    getSummaryFor(propertyId).status
 
   const resetForm = () => {
     setNewName("")
@@ -324,25 +352,127 @@ export function PropertiesTable() {
 
   const openPaymentModal = (property: Property) => {
     const activeLease = activeLeaseByPropertyId.get(property.id)
+    const currentPeriod = getCurrentPeriod()
 
     setSelectedPropertyForPayment(property)
     setPaymentDate(getTodayDateForInput())
+    setPaymentPeriodKey(
+      `${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")}`
+    )
     setPaymentAmount(activeLease?.rent_amount ? String(activeLease.rent_amount) : "")
     setPaymentMethod("")
     setPaymentNotes("")
     setPaymentError("")
+    setPendingPaymentAction(null)
     setIsPaymentModalOpen(true)
   }
 
   const closePaymentModal = () => {
     if (isSavingPayment) return
+    const currentPeriod = getCurrentPeriod()
     setIsPaymentModalOpen(false)
     setSelectedPropertyForPayment(null)
     setPaymentDate(getTodayDateForInput())
+    setPaymentPeriodKey(
+      `${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")}`
+    )
     setPaymentAmount("")
     setPaymentMethod("")
     setPaymentNotes("")
     setPaymentError("")
+    setPendingPaymentAction(null)
+  }
+
+  const persistPayment = async (
+    draft: PendingPaymentAction,
+    action: "sum" | "replace"
+  ) => {
+    if (!currentUserId) {
+      setPaymentError("No se encontrÃ³ el usuario autenticado.")
+      return
+    }
+
+    setIsSavingPayment(true)
+    setPaymentError("")
+
+    if (action === "replace") {
+      if (draft.existingPayments.length === 1) {
+        const { error } = await supabase
+          .from("payments")
+          .update({
+            amount: draft.amount,
+            payment_date: draft.payment_date,
+            payment_method: draft.payment_method,
+            period_month: draft.period_month,
+            period_year: draft.period_year,
+            notes: draft.notes,
+          })
+          .eq("id", draft.existingPayments[0].id)
+          .eq("user_id", currentUserId)
+
+        if (error) {
+          setPaymentError(error.message)
+          setIsSavingPayment(false)
+          return
+        }
+      } else {
+        const existingPaymentIds = draft.existingPayments.map((payment) => payment.id)
+
+        const { error: deleteError } = await supabase
+          .from("payments")
+          .delete()
+          .eq("user_id", currentUserId)
+          .in("id", existingPaymentIds)
+
+        if (deleteError) {
+          setPaymentError(deleteError.message)
+          setIsSavingPayment(false)
+          return
+        }
+
+        const { error: insertError } = await supabase.from("payments").insert([
+          {
+            user_id: currentUserId,
+            lease_id: draft.leaseId,
+            amount: draft.amount,
+            payment_date: draft.payment_date,
+            payment_method: draft.payment_method,
+            period_month: draft.period_month,
+            period_year: draft.period_year,
+            notes: draft.notes,
+          },
+        ])
+
+        if (insertError) {
+          setPaymentError(insertError.message)
+          setIsSavingPayment(false)
+          return
+        }
+      }
+    } else {
+      const { error } = await supabase.from("payments").insert([
+        {
+          user_id: currentUserId,
+          lease_id: draft.leaseId,
+          amount: draft.amount,
+          payment_date: draft.payment_date,
+          payment_method: draft.payment_method,
+          period_month: draft.period_month,
+          period_year: draft.period_year,
+          notes: draft.notes,
+        },
+      ])
+
+      if (error) {
+        setPaymentError(error.message)
+        setIsSavingPayment(false)
+        return
+      }
+    }
+
+    await fetchData()
+    setIsSavingPayment(false)
+    closePaymentModal()
   }
 
   const handleRegisterPayment = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -377,40 +507,64 @@ export function PropertiesTable() {
       return
     }
 
-    if (isBeforeToday(paymentDate)) {
-      setPaymentError(PAST_DATE_PAYMENT_MESSAGE)
+    if (!paymentDate) {
+      setPaymentError("Selecciona la fecha de pago.")
       return
     }
 
-    setIsSavingPayment(true)
+    const selectedPeriod = paymentPeriodOptions.find(
+      (option) => option.value === paymentPeriodKey
+    )
+
+    if (!selectedPeriod) {
+      setPaymentError("Selecciona el mes que cubre este pago.")
+      return
+    }
+
+    if (activeLease.start_date && paymentDate < activeLease.start_date) {
+      setPaymentError("La fecha de pago no puede ser anterior al inicio del contrato.")
+      return
+    }
+
+    if (activeLease.start_date) {
+      const contractStart = new Date(`${activeLease.start_date}T00:00:00`)
+      const contractStartMonth = contractStart.getMonth() + 1
+      const contractStartYear = contractStart.getFullYear()
+
+      if (
+        selectedPeriod.year < contractStartYear ||
+        (selectedPeriod.year === contractStartYear &&
+          selectedPeriod.month < contractStartMonth)
+      ) {
+        setPaymentError("El mes que cubre no puede ser anterior al inicio del contrato.")
+        return
+      }
+    }
+
     setPaymentError("")
 
-    const selectedDate = new Date(`${paymentDate}T00:00:00`)
-    const periodMonth = selectedDate.getMonth() + 1
-    const periodYear = selectedDate.getFullYear()
+    const draft: PendingPaymentAction = {
+      leaseId: activeLease.id,
+      amount,
+      payment_date: paymentDate,
+      payment_method: paymentMethod,
+      period_month: selectedPeriod.month,
+      period_year: selectedPeriod.year,
+      notes: paymentNotes.trim() || null,
+      existingPayments: payments.filter(
+        (payment) =>
+          payment.lease_id === activeLease.id &&
+          payment.period_month === selectedPeriod.month &&
+          payment.period_year === selectedPeriod.year
+      ),
+    }
 
-    const { error } = await supabase.from("payments").insert([
-      {
-        user_id: currentUserId,
-        lease_id: activeLease.id,
-        amount,
-        payment_date: paymentDate,
-        payment_method: paymentMethod,
-        period_month: periodMonth,
-        period_year: periodYear,
-        notes: paymentNotes.trim() || null,
-      },
-    ])
-
-    if (error) {
-      setPaymentError(error.message)
-      setIsSavingPayment(false)
+    if (draft.existingPayments.length > 0) {
+      setPendingPaymentAction(draft)
       return
     }
 
-    await fetchData()
-    setIsSavingPayment(false)
-    closePaymentModal()
+    await persistPayment(draft, "sum")
   }
 
   const openDeleteModal = (property: Property) => {
@@ -688,16 +842,39 @@ export function PropertiesTable() {
             />
 
             <form onSubmit={handleRegisterPayment} className="space-y-4 px-6 py-5">
-              <Field label="Fecha de pago">
-                <input
-                  type="date"
-                  value={paymentDate}
-                  min={getTodayDateForInput()}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className={inputClass()}
-                  required
-                />
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Fecha de pago">
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    min={selectedPropertyForPayment
+                      ? activeLeaseByPropertyId.get(selectedPropertyForPayment.id)?.start_date || undefined
+                      : undefined}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className={inputClass()}
+                    required
+                  />
+                </Field>
+
+                <Field label="Mes y año que cubre">
+                  <select
+                    value={paymentPeriodKey}
+                    onChange={(e) => setPaymentPeriodKey(e.target.value)}
+                    className={inputClass()}
+                    required
+                  >
+                    {paymentPeriodOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <p className="-mt-2 text-sm text-muted-foreground">
+                Selecciona el mes de renta al que corresponde este pago.
+              </p>
 
               <Field label="Monto recibido">
                 <input
@@ -737,8 +914,8 @@ export function PropertiesTable() {
               </Field>
 
               <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                El periodo se calculará automáticamente con base en la fecha
-                seleccionada.
+                La fecha de pago se guarda como historial. El estatus del pago
+                se calcula con base en el mes de renta que selecciones.
               </div>
 
               {paymentError ? (
@@ -754,6 +931,64 @@ export function PropertiesTable() {
           </div>
         </div>
       )}
+
+      {isPaymentModalOpen && pendingPaymentAction ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <ModalHeader
+              title="Pago ya registrado"
+              description="Ya existe un pago registrado para este periodo."
+              onClose={() => {
+                if (isSavingPayment) return
+                setPendingPaymentAction(null)
+              }}
+            />
+
+            <div className="space-y-4 px-6 py-5">
+              <p className="text-sm text-muted-foreground">
+                {pendingPaymentAction.existingPayments.length === 1
+                  ? "Ya existe 1 pago registrado para este periodo."
+                  : `Ya existen ${pendingPaymentAction.existingPayments.length} pagos registrados para este periodo.`}{" "}
+                ¿Qué deseas hacer?
+              </p>
+
+              <div className="grid gap-3">
+                <Button
+                  type="button"
+                  onClick={() => persistPayment(pendingPaymentAction, "sum")}
+                  disabled={isSavingPayment}
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                >
+                  Sumarlo al periodo
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => persistPayment(pendingPaymentAction, "replace")}
+                  disabled={isSavingPayment}
+                >
+                  Reemplazar pago anterior
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setPendingPaymentAction(null)}
+                  disabled={isSavingPayment}
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Si eliges reemplazar y ya existen varios pagos para ese mismo
+                periodo, se consolidarán en un solo registro nuevo.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isDeleteModalOpen && selectedPropertyForDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
