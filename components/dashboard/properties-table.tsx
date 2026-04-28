@@ -70,11 +70,13 @@ type Property = {
 type Lease = {
   id: string
   property_id: string | null
+  tenant_id: string | null
   status: string | null
   due_day: number | null
   rent_amount: number | null
   start_date: string | null
   end_date: string | null
+  created_at: string | null
   user_id?: string | null
 }
 
@@ -184,7 +186,7 @@ export function PropertiesTable() {
       supabase
         .from("leases")
         .select(
-          "id, property_id, status, due_day, rent_amount, start_date, end_date, user_id"
+          "id, property_id, tenant_id, status, due_day, rent_amount, start_date, end_date, created_at, user_id"
         )
         .eq("user_id", currentUserId),
 
@@ -487,7 +489,6 @@ export function PropertiesTable() {
                   <TableHead className="hidden md:table-cell">Dirección</TableHead>
                   <TableHead className="hidden md:table-cell">Tipo</TableHead>
                   <TableHead>Estatus</TableHead>
-                  <TableHead className="hidden md:table-cell">Pago</TableHead>
                   <TableHead className="hidden md:table-cell">Monto</TableHead>
                   <TableHead className="hidden md:table-cell">Pagado hasta</TableHead>
                   <TableHead className="hidden md:table-cell">Saldo</TableHead>
@@ -501,7 +502,7 @@ export function PropertiesTable() {
                   const isOccupied = Boolean(activeLease)
                   const summary = getSummaryFor(property.id)
                   const paymentBadge = paymentStatusConfig[summary.status]
-                  const hasContract = summary.status !== "sin_contrato"
+                  const hasContract = isOccupied && summary.status !== "sin_contrato"
 
                   return (
                     <TableRow key={property.id}>
@@ -524,24 +525,6 @@ export function PropertiesTable() {
                       </TableCell>
 
                       <TableCell>
-                        {isOccupied ? (
-                          <Badge
-                            variant="outline"
-                            className="border-blue-200 bg-blue-50 text-blue-700"
-                          >
-                            Ocupada
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="border-green-200 bg-green-50 text-green-700"
-                          >
-                            Disponible
-                          </Badge>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="hidden md:table-cell">
                         <Badge
                           variant="outline"
                           className={paymentBadge.className}

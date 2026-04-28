@@ -338,7 +338,17 @@ export default function PaymentsPage() {
     ]
   }, [currentMonthStatus])
 
-  const totalReceived = payments.reduce(
+  const currentPeriod = useMemo(() => getCurrentPeriod(), [])
+
+  const currentMonthPayments = useMemo(() => {
+    return payments.filter(
+      (payment) =>
+        payment.period_month === currentPeriod.month &&
+        payment.period_year === currentPeriod.year
+    )
+  }, [payments, currentPeriod.month, currentPeriod.year])
+
+  const totalReceived = currentMonthPayments.reduce(
     (sum, payment) => sum + Number(payment.amount || 0),
     0
   )
@@ -371,7 +381,7 @@ export default function PaymentsPage() {
               <MetricCard
                 title="Pagos recibidos"
                 value={formatCurrency(totalReceived)}
-                description={`${payments.length} pagos registrados`}
+                description={`${currentMonthPayments.length} pagos registrados del mes`}
                 icon={<CheckCircle2 className="h-6 w-6 text-green-700" />}
                 iconBoxClassName="bg-green-100"
                 badgeLabel="Recibidos"
