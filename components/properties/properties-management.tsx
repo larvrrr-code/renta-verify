@@ -1600,8 +1600,8 @@ export function PropertiesManagement() {
         selectedPropertyForTenant &&
         typeof window !== "undefined" &&
         createPortal(
-          <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/20 p-4">
-            <div className="relative z-[1101] flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/50 p-4">
+            <div className="relative z-[1301] flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
               <ModalHeader
                 title="Agregar inquilino"
                 description={selectedPropertyForTenant.name || "Propiedad seleccionada"}
@@ -1673,7 +1673,7 @@ export function PropertiesManagement() {
                       </select>
                     </Field>
 
-                    <Field label="Dependientes">
+                    <Field label="Número de inquilinos">
                       <select
                         value={tenantDependentsRange}
                         onChange={(e) => setTenantDependentsRange(e.target.value)}

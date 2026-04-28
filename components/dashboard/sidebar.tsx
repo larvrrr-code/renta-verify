@@ -41,14 +41,23 @@ export function DashboardSidebar() {
 
   const [fullName, setFullName] = useState("")
   const [initials, setInitials] = useState("")
+  const [isMobile, setIsMobile] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)")
+    const update = () => setIsMobile(mq.matches)
+    update()
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
+  }, [])
 
   useEffect(() => {
     setIsMobileOpen(false)
   }, [pathname])
 
   useEffect(() => {
-    if (isMobileOpen) {
+    if (isMobile && isMobileOpen) {
       document.body.style.overflow = "hidden"
     } else {
       document.body.style.overflow = ""
@@ -56,7 +65,7 @@ export function DashboardSidebar() {
     return () => {
       document.body.style.overflow = ""
     }
-  }, [isMobileOpen])
+  }, [isMobile, isMobileOpen])
 
   useEffect(() => {
     const getUser = async () => {
@@ -86,28 +95,36 @@ export function DashboardSidebar() {
     window.location.href = "/login"
   }
 
+  const sidebarTransform = !isMobile
+    ? "translate-x-0"
+    : isMobileOpen
+    ? "translate-x-0"
+    : "-translate-x-full"
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setIsMobileOpen(true)}
-        aria-label="Abrir menú"
-        className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#213A6B] shadow-md transition-colors hover:bg-slate-100 md:hidden"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(true)}
+          aria-label="Abrir menú"
+          className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#213A6B] shadow-md transition-colors hover:bg-slate-100"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      ) : null}
 
-      {isMobileOpen ? (
+      {isMobile && isMobileOpen ? (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50"
         />
       ) : null}
 
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col bg-[#213A6B] text-white transition-transform duration-200 md:translate-x-0",
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col bg-[#213A6B] text-white transition-transform duration-200",
+        sidebarTransform
       )}
     >
       <div className="relative flex h-20 items-center border-b border-white/10 px-6">
@@ -116,14 +133,16 @@ export function DashboardSidebar() {
           alt="Renta Verify"
           className="h-8 object-contain"
         />
-        <button
-          type="button"
-          onClick={() => setIsMobileOpen(false)}
-          aria-label="Cerrar menú"
-          className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {isMobile ? (
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen(false)}
+            aria-label="Cerrar menú"
+            className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        ) : null}
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">

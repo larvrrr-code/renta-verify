@@ -1,7 +1,39 @@
+"use client"
+
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase"
+
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Shield, BarChart3, Search } from "lucide-react"
 
 export function Hero() {
+  const router = useRouter()
+  const supabase = createClient()
+
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUser(data.user)
+      setLoading(false)
+    }
+
+    getUser()
+  }, [])
+
+  const handlePortalClick = () => {
+    if (loading) return
+
+    if (user) {
+      router.push("/dashboard")
+    } else {
+      router.push("/login")
+    }
+  }
+
   return (
     <section className="relative isolate pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
       {/* Background gradient */}
@@ -18,35 +50,37 @@ export function Hero() {
             <Shield className="w-4 h-4" />
             <span>Evaluación profesional de inquilinos</span>
           </div>
-          
+
           <h1 className="text-4xl sm:text-5xl lg:text-[4.5rem] leading-[1.1] lg:leading-[1.05] tracking-tight text-foreground text-balance">
             Decide con información.{" "}
             <br />
             <span className="text-[#3E61D0]">Renta con seguridad.</span>
           </h1>
-          
+
           <p className="mt-6 text-lg leading-relaxed text-muted-foreground lg:text-xl text-pretty">
             Evalúa a tus inquilinos con datos reales: análisis crediticio, antecedentes legales 
             y presencia digital. Toma decisiones informadas y protege tu inversión inmobiliaria.
           </p>
-          
+
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button 
+              onClick={handlePortalClick}
               size="lg" 
               className="bg-accent text-accent-foreground hover:bg-accent/90 text-base font-semibold px-8 h-12 w-full sm:w-auto"
             >
-              Comenzar evaluación
+              Portal de arrendadores
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
+
             <a href="#como-funciona">
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="text-base font-medium px-8 h-12 w-full sm:w-auto border-border hover:bg-muted"
-            >
-              Conocer el proceso
-            </Button>
-          </a>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="text-base font-medium px-8 h-12 w-full sm:w-auto border-border hover:bg-muted"
+              >
+                Conocer el proceso
+              </Button>
+            </a>
           </div>
         </div>
 
