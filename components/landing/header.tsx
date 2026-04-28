@@ -46,12 +46,14 @@ export function Header() {
             onClick={() => router.push("/")}
           />
 
+          {/*
           <div className="hidden lg:flex items-center gap-8">
             <a href="#problema" className="text-sm text-muted-foreground hover:text-foreground">El Problema</a>
             <a href="#como-funciona" className="text-sm text-muted-foreground hover:text-foreground">Cómo Funciona</a>
             <a href="#caracteristicas" className="text-sm text-muted-foreground hover:text-foreground">Características</a>
             <a href="#beneficios" className="text-sm text-muted-foreground hover:text-foreground">Beneficios</a>
           </div>
+          */}
 
           {/* Desktop */}
           <div className="hidden lg:flex items-center gap-4">
@@ -71,10 +73,12 @@ export function Header() {
         {/* Mobile */}
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t border-border space-y-4">
+            {/*
             <a href="#problema" className="block text-sm">El Problema</a>
             <a href="#como-funciona" className="block text-sm">Cómo Funciona</a>
             <a href="#caracteristicas" className="block text-sm">Características</a>
             <a href="#beneficios" className="block text-sm">Beneficios</a>
+            */}
 
             <div className="pt-4 border-t">
               <Button

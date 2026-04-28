@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase"
@@ -206,11 +207,17 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-md">
         <div className="px-8 py-12 md:px-9 md:py-14">
           <div className="mb-8">
-            <img
-              src="/RentaVerify_imagotipo_horizontal_color.png"
-              alt="Renta Verify"
-              className="h-12 w-auto object-contain"
-            />
+            <Link
+              href="/"
+              className="inline-flex rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E61D0] focus-visible:ring-offset-2"
+              aria-label="Volver a la página principal"
+            >
+              <img
+                src="/RentaVerify_imagotipo_horizontal_color.png"
+                alt="Renta Verify"
+                className="h-12 w-auto object-contain"
+              />
+            </Link>
           </div>
 
           <div className="mb-8">

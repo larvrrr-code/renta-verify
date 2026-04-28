@@ -72,15 +72,17 @@ export function Hero() {
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
 
+            {/*
             <a href="#como-funciona">
-              <Button 
-                variant="outline" 
-                size="lg" 
+              <Button
+                variant="outline"
+                size="lg"
                 className="text-base font-medium px-8 h-12 w-full sm:w-auto border-border hover:bg-muted"
               >
                 Conocer el proceso
               </Button>
             </a>
+            */}
           </div>
         </div>
 

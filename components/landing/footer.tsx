@@ -1,79 +1,84 @@
+import { Facebook, Instagram } from "lucide-react"
+
+const FACEBOOK_URL = "https://facebook.com/rentaverify"
+const INSTAGRAM_URL = "https://instagram.com/rentaverify"
+const CONTACT_EMAIL = "contacto@rentaverify.com"
+
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-card">
+    <footer className="bg-[#213A6B] text-white">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8 lg:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
           {/* Brand */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">R</span>
-              </div>
-              <span className="font-semibold text-xl text-primary">Renta Verify</span>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground max-w-md leading-relaxed">
-              La plataforma líder en evaluación de inquilinos. Decide con información, 
+          <div>
+            <img
+              src="/RentaVerify_isotipo_blanco.png"
+              alt="Renta Verify"
+              className="h-12 w-auto"
+            />
+            <p className="mt-4 text-sm text-white/80 max-w-md leading-relaxed">
+              La plataforma líder en evaluación de inquilinos. Decide con información,
               renta con seguridad.
             </p>
           </div>
 
-          {/* Links */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Producto</h3>
+            <h3 className="text-sm font-semibold text-white">Contacto</h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <a href="#caracteristicas" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Características
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  {CONTACT_EMAIL}
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Precios
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  API
+                <a
+                  href="/contacto"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  Ayuda y soporte
                 </a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Empresa</h3>
-            <ul className="mt-4 space-y-3">
-              <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Nosotros
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Contacto
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Privacidad
-                </a>
-              </li>
-            </ul>
+            <h3 className="text-sm font-semibold text-white">Síguenos</h3>
+            <div className="mt-4 flex items-center gap-4">
+              <a
+                href={FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="text-white hover:text-white/80 transition-colors"
+              >
+                <Facebook className="h-6 w-6" />
+              </a>
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="text-white hover:text-white/80 transition-colors"
+              >
+                <Instagram className="h-6 w-6" />
+              </a>
+            </div>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-12 pt-8 border-t border-white/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-white/80">
             © {new Date().getFullYear()} Renta Verify. Todos los derechos reservados.
           </p>
           <div className="flex items-center gap-6">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Términos
-            </a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Privacidad
-            </a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Cookies
+            <a
+              href="#"
+              className="text-sm text-white/80 hover:text-white transition-colors"
+            >
+              Aviso de privacidad
             </a>
           </div>
         </div>
