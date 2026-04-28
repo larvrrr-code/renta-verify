@@ -587,13 +587,13 @@ export function PropertiesTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Propiedad</TableHead>
-                  <TableHead>Dirección</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead className="hidden md:table-cell">Dirección</TableHead>
+                  <TableHead className="hidden md:table-cell">Tipo</TableHead>
                   <TableHead>Estatus</TableHead>
-                  <TableHead>Pago</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Pagado hasta</TableHead>
-                  <TableHead>Saldo</TableHead>
+                  <TableHead className="hidden md:table-cell">Pago</TableHead>
+                  <TableHead className="hidden md:table-cell">Monto</TableHead>
+                  <TableHead className="hidden md:table-cell">Pagado hasta</TableHead>
+                  <TableHead className="hidden md:table-cell">Saldo</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -614,7 +614,7 @@ export function PropertiesTable() {
                         {property.name || "Sin nombre"}
                       </TableCell>
 
-                      <TableCell className="max-w-[300px]">
+                      <TableCell className="hidden max-w-[300px] md:table-cell">
                         <div className="truncate text-muted-foreground">
                           {property.address || "Sin dirección"}
                         </div>
@@ -624,7 +624,7 @@ export function PropertiesTable() {
                         </div>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {getOptionLabel(propertyTypeOptions, property.property_type)}
                       </TableCell>
 
@@ -646,7 +646,7 @@ export function PropertiesTable() {
                         )}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <Badge
                           variant="outline"
                           className={paymentBadge.className}
@@ -655,15 +655,15 @@ export function PropertiesTable() {
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="font-medium">
+                      <TableCell className="hidden font-medium md:table-cell">
                         {formatCurrency(activeLease?.rent_amount)}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {leaseBalance?.paidUntilLabel || "—"}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {leaseBalance ? formatCurrency(leaseBalance.balance) : "—"}
                       </TableCell>
 

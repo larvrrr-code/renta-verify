@@ -1037,11 +1037,11 @@ export function PropertiesManagement() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="truncate text-[28px] font-semibold tracking-wider text-[#213A6B]">
+                            <h3 className="truncate text-xl font-semibold tracking-wider text-[#213A6B] sm:text-[28px]">
                               {property.name || "Sin nombre"}
                             </h3>
 
-                            <p className="mt-1 text-lg text-slate-600">
+                            <p className="mt-1 text-sm text-slate-600 sm:text-lg">
                               {property.address || "Sin dirección"}
                               {property.neighborhood ? ` · ${property.neighborhood}` : ""}
                               {property.zip_code ? ` · CP ${property.zip_code}` : ""}
