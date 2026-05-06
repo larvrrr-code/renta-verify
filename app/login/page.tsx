@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const supabase = createClient()
 
@@ -62,6 +63,8 @@ export default function LoginPage() {
   const [ownerType, setOwnerType] = useState<OwnerType>("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -82,6 +85,8 @@ export default function LoginPage() {
     setSignupStep(1)
     setPassword("")
     setConfirmPassword("")
+    setAcceptedTerms(false)
+    setAcceptedPrivacy(false)
     resetMessages()
   }
 
@@ -90,6 +95,8 @@ export default function LoginPage() {
     setSignupStep(1)
     setPassword("")
     setConfirmPassword("")
+    setAcceptedTerms(false)
+    setAcceptedPrivacy(false)
     resetMessages()
   }
 
@@ -156,6 +163,13 @@ export default function LoginPage() {
     e.preventDefault()
     setErrorMessage("")
 
+    if (!acceptedTerms || !acceptedPrivacy) {
+      setErrorMessage(
+        "Debes aceptar los Términos y Condiciones y el Aviso de Privacidad para continuar."
+      )
+      return
+    }
+
     if (password.length < 6) {
       setErrorMessage("La contraseña debe tener al menos 6 caracteres.")
       return
@@ -197,6 +211,8 @@ export default function LoginPage() {
     setSignupStep(3)
     setPassword("")
     setConfirmPassword("")
+    setAcceptedTerms(false)
+    setAcceptedPrivacy(false)
   }
 
   return (
@@ -440,6 +456,52 @@ export default function LoginPage() {
                   />
                 </div>
 
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                  <label className="flex items-start gap-3 text-sm text-foreground">
+                    <Checkbox
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) =>
+                        setAcceptedTerms(checked === true)
+                      }
+                      className="mt-0.5 border-slate-300 data-[state=checked]:border-[#3E61D0] data-[state=checked]:bg-[#3E61D0] focus-visible:ring-[#3E61D0]/30"
+                      aria-label="Aceptar Términos y Condiciones"
+                    />
+                    <span className="leading-6">
+                      Acepto los{" "}
+                      <Link
+                        href="/terminos"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-[#3E61D0] underline-offset-4 transition hover:underline"
+                      >
+                        Términos y Condiciones
+                      </Link>
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 text-sm text-foreground">
+                    <Checkbox
+                      checked={acceptedPrivacy}
+                      onCheckedChange={(checked) =>
+                        setAcceptedPrivacy(checked === true)
+                      }
+                      className="mt-0.5 border-slate-300 data-[state=checked]:border-[#3E61D0] data-[state=checked]:bg-[#3E61D0] focus-visible:ring-[#3E61D0]/30"
+                      aria-label="Aceptar Aviso de Privacidad"
+                    />
+                    <span className="leading-6">
+                      Acepto el{" "}
+                      <Link
+                        href="/aviso-privacidad"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-[#3E61D0] underline-offset-4 transition hover:underline"
+                      >
+                        Aviso de Privacidad
+                      </Link>
+                    </span>
+                  </label>
+                </div>
+
                 {errorMessage && (
                   <p className="text-sm text-red-600">{errorMessage}</p>
                 )}
@@ -460,6 +522,8 @@ export default function LoginPage() {
                   onClick={() => {
                     setSignupStep(1)
                     setErrorMessage("")
+                    setAcceptedTerms(false)
+                    setAcceptedPrivacy(false)
                   }}
                   className="h-12 w-full rounded-lg border text-sm font-medium transition-colors"
                   style={{

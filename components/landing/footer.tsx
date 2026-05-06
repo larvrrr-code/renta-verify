@@ -2,7 +2,7 @@ import { Facebook, Instagram } from "lucide-react"
 
 const FACEBOOK_URL = "https://facebook.com/rentaverify"
 const INSTAGRAM_URL = "https://instagram.com/rentaverify"
-const CONTACT_EMAIL = "contacto@rentaverify.com"
+const CONTACT_EMAIL = "rentaverify@gmail.com"
 
 export function Footer() {
   return (
@@ -73,12 +73,18 @@ export function Footer() {
           <p className="text-sm text-white/80">
             © {new Date().getFullYear()} Renta Verify. Todos los derechos reservados.
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a
-              href="#"
+              href="/aviso-privacidad"
               className="text-sm text-white/80 hover:text-white transition-colors"
             >
               Aviso de privacidad
+            </a>
+            <a
+              href="/terminos"
+              className="text-sm text-white/80 hover:text-white transition-colors"
+            >
+              Términos y condiciones
             </a>
           </div>
         </div>

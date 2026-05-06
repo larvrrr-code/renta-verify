@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Read(//c/Users/Lenovo/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/40275b3e-0e45-459e-9c7d-0703925b13d5/7fc2dfb4-29c9-4379-8d1f-e73cd1a4ee9b/skills/docx/**)",
+      "Bash(extract-text \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\TERMINOS Y CONDICIONES SIMP. MERC.docx\")",
+      "Bash(pandoc \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\TERMINOS Y CONDICIONES SIMP. MERC.docx\" -o /tmp/terminos.md)",
+      "Bash(pandoc \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\AVISO DE PRIVACIDAD SIMP. MERC.docx\" -o /tmp/aviso.md)",
+      "Read(//tmp/**)",
+      "PowerShell(pandoc \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\TERMINOS Y CONDICIONES SIMP. MERC.docx\" -t plain)",
+      "PowerShell($skill = \"C:\\\\Users\\\\Lenovo\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\40275b3e-0e45-459e-9c7d-0703925b13d5\\\\7fc2dfb4-29c9-4379-8d1f-e73cd1a4ee9b\\\\skills\\\\docx\"; python \"$skill\\\\scripts\\\\office\\\\unpack.py\" \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\TERMINOS Y CONDICIONES SIMP. MERC.docx\" \"$env:TEMP\\\\terminos_unpacked\"; python \"$skill\\\\scripts\\\\office\\\\unpack.py\" \"C:\\\\Users\\\\Lenovo\\\\Downloads\\\\AVISO DE PRIVACIDAD SIMP. MERC.docx\" \"$env:TEMP\\\\aviso_unpacked\")",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }
